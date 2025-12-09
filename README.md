@@ -1,3 +1,26 @@
+## Win32::Unicode
+
+PerlでWindowsのUnicode APIを利用するためのモジュール。
+
+## install
+
+`perl Makefile.PL`の前に必要なモジュールをインストールする必要がある。
+そのモジュールが何かは忘れた。
+
+```bash
+git clone git@github.com:sunadarake/p5-win-unicode.git
+cd p5-win-unicode
+perl Makefile.PL
+gmake
+gmake install
+```
+
+## 現状の課題
+
+print関係のtestが通らない。
+
+## Original README.md
+
 This is Perl module Win32::Unicode.
 
 INSTALLATION

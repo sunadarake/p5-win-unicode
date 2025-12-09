@@ -51,8 +51,8 @@ create_process(WCHAR *shell, WCHAR* cmd)
             XSRETURN_EMPTY;
         }
 
-        hv_stores(hv, "thread_handle", newSViv((long)pi.hThread));
-        hv_stores(hv, "process_handle", newSViv((long)pi.hProcess));
+        hv_stores(hv, "thread_handle", newSVuv(PTR2UV(pi.hThread)));
+        hv_stores(hv, "process_handle", newSVuv(PTR2UV(pi.hProcess)));
 
         ST(0) = hvref;
         XSRETURN(1);
