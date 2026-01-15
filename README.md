@@ -5,7 +5,13 @@ PerlでWindowsのUnicode APIを利用するためのモジュール。
 ## install
 
 `perl Makefile.PL`の前に必要なモジュールをインストールする必要がある。
-そのモジュールが何かは忘れた。
+そのモジュールが何かは忘れたが、おそらく以下のものだろう。
+
+```bash
+cpanm Module::Install Module::Install::XSUtil Module::Install::AuthorTests Module::Install::Repository
+```
+
+そして、このプロジェクトをダウンロードする。
 
 ```bash
 git clone git@github.com:sunadarake/p5-win-unicode.git

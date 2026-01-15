@@ -177,10 +177,21 @@ sub _readline {
     }
 
     my $line = '';
-    while (index($line, $/) == $[ -1) {
-        my $char = $self->getc;
-        last if not defined $char or $char eq '';
-        $line .= $char;
+
+    # If $/ is undefined, read entire file
+    if (!defined $/) {
+        while (1) {
+            my $char = $self->getc;
+            last if not defined $char or $char eq '';
+            $line .= $char;
+        }
+    }
+    else {
+        while (index($line, $/) == $[ -1) {
+            my $char = $self->getc;
+            last if not defined $char or $char eq '';
+            $line .= $char;
+        }
     }
 
     $line =~ s/\015\012/\n/ unless *$self->{_binmode};
