@@ -3,7 +3,7 @@ package Win32::Unicode::Dir;
 use strict;
 use warnings;
 use 5.008003;
-use Carp ();
+use Carp           ();
 use File::Basename qw/basename dirname/;
 use Exporter 'import';
 
@@ -15,11 +15,12 @@ use Win32::Unicode::Console;
 use Win32::Unicode::XS;
 
 # export subs
-our @EXPORT    = qw/file_type file_size mkdirW rmdirW getcwdW chdirW findW finddepthW mkpathW rmtreeW mvtreeW cptreeW dir_size file_list dir_list/;
-our @EXPORT_OK = qw//;
-our %EXPORT_TAGS = ('all' => [@EXPORT, @EXPORT_OK]);
+our @EXPORT =
+  qw/file_type file_size mkdirW rmdirW getcwdW chdirW findW finddepthW mkpathW rmtreeW mvtreeW cptreeW dir_size file_list dir_list/;
+our @EXPORT_OK   = qw//;
+our %EXPORT_TAGS = ( 'all' => [ @EXPORT, @EXPORT_OK ] );
 
-our $VERSION = '0.38';
+our $VERSION = '0.39';
 
 # global vars
 our $cwd;
@@ -35,18 +36,19 @@ sub new {
 # like CORE::opendir
 sub open {
     my $self = shift;
-    my $dir = shift;
+    my $dir  = shift;
     _croakW('Usage $obj->open(dirname)') unless defined $dir;
 
     $dir = cygpathw($dir) or return if CYGWIN;
 
     $self->{dir} = $dir;
-    $dir = utf8_to_utf16(catfile $dir, '*') . NULL;
+    $dir = utf8_to_utf16( catfile $dir, '*' ) . NULL;
 
     $self->find_first_file($dir);
-    return Win32::Unicode::Error::_set_errno if $self->{handle} == INVALID_HANDLE_VALUE;
+    return Win32::Unicode::Error::_set_errno
+      if $self->{handle} == INVALID_HANDLE_VALUE;
 
-    $self->{first} = utf16_to_utf8($self->{first});
+    $self->{first} = utf16_to_utf8( $self->{first} );
 
     return $self;
 }
@@ -54,7 +56,7 @@ sub open {
 # like CORE::closedir
 sub close {
     my $self = shift;
-    _croakW("Can't open directory handle") unless $self->{handle};
+    _croakW("Can't open directory handle")   unless $self->{handle};
     return Win32::Unicode::Error::_set_errno unless $self->find_close;
     delete @$self{qw[dir handle first FileInfo]};
     return 1;
@@ -67,7 +69,7 @@ sub fetch {
 
     # if defined first file
     my $first;
-    if ($self->{first}) {
+    if ( $self->{first} ) {
         $first = $self->{first};
         delete $self->{first};
     }
@@ -77,7 +79,7 @@ sub fetch {
         my @files;
 
         push @files, $first if $first;
-        while (defined(my $file = $self->find_next_file)) {
+        while ( defined( my $file = $self->find_next_file ) ) {
             push @files, utf16_to_utf8($file);
         }
 
@@ -101,12 +103,13 @@ sub getcwdW {
 # like CORE::chdir
 sub chdirW {
     my $set_dir = shift;
-    my $retry = shift || 0;
+    my $retry   = shift || 0;
     _croakW('Usage: chdirW(dirname)') unless defined $set_dir;
     $set_dir = cygpathw($set_dir) or return if CYGWIN;
     $set_dir = catfile($set_dir);
-    return Win32::Unicode::Error::_set_errno unless set_current_directory(utf8_to_utf16($set_dir) . NULL);
-    return chdirW($set_dir, ++$retry) if CYGWIN && !$retry; # bug ?
+    return Win32::Unicode::Error::_set_errno
+      unless set_current_directory( utf8_to_utf16($set_dir) . NULL );
+    return chdirW( $set_dir, ++$retry ) if CYGWIN && !$retry;    # bug ?
     return 1;
 }
 
@@ -114,7 +117,7 @@ sub chdirW {
 sub mkdirW {
     my $dir = defined $_[0] ? $_[0] : $_;
     $dir = cygpathw($dir) or return if CYGWIN;
-    $dir = utf8_to_utf16(catfile $dir) . NULL;
+    $dir = utf8_to_utf16( catfile $dir ) . NULL;
     return create_directory($dir) ? 1 : Win32::Unicode::Error::_set_errno;
 }
 
@@ -122,34 +125,34 @@ sub mkdirW {
 sub rmdirW {
     my $dir = defined $_[0] ? $_[0] : $_;
     $dir = cygpathw($dir) or return if CYGWIN;
-    $dir = utf8_to_utf16(catfile $dir) . NULL;
+    $dir = utf8_to_utf16( catfile $dir ) . NULL;
     return remove_directory($dir) ? 1 : Win32::Unicode::Error::_set_errno;
 }
 
 # like File::Path::rmtree
 sub rmtreeW {
-    my $dir = shift;
+    my $dir  = shift;
     my $stop = shift;
     _croakW('Usage: rmtreeW(dirname)') unless defined $dir;
     $dir = catfile $dir;
 
-    return unless file_type(d => $dir);
+    return unless file_type( d => $dir );
     my $code = sub {
         my $file = $_;
-        if (file_type(f => $file)) {
-            if (not unlinkW $file) {
+        if ( file_type( f => $file ) ) {
+            if ( not unlinkW $file ) {
                 return if $stop;
             }
         }
 
-        elsif (file_type(d => $file)) {
-            if (not rmdirW $file) {
+        elsif ( file_type( d => $file ) ) {
+            if ( not rmdirW $file ) {
                 return if $stop;
             }
         }
     };
 
-    finddepthW($code, $dir);
+    finddepthW( $code, $dir );
 
     return unless rmdirW($dir);
     return 1;
@@ -162,7 +165,7 @@ sub mkpathW {
     $dir = catfile $dir;
 
     my $mkpath = '.';
-    for (splitdir $dir) {
+    for ( splitdir $dir ) {
         $mkpath = catfile $mkpath, $_;
         next if file_type d => $mkpath;
         return unless mkdirW $mkpath;
@@ -172,13 +175,15 @@ sub mkpathW {
 
 # like File::Copy::copy
 sub cptreeW {
-    _croakW('Usage: cptreeW(from, to [, over])') unless defined $_[0] and defined $_[1];
-    _cptree($_[0], $_[1], $_[2], 0);
+    _croakW('Usage: cptreeW(from, to [, over])')
+      unless defined $_[0] and defined $_[1];
+    _cptree( $_[0], $_[1], $_[2], 0 );
 }
 
 sub mvtreeW {
-    _croakW('Usage: mvtreeW(from, to [, over])') unless defined $_[0] and defined $_[1];
-    _cptree($_[0], $_[1], $_[2], 1);
+    _croakW('Usage: mvtreeW(from, to [, over])')
+      unless defined $_[0] and defined $_[1];
+    _cptree( $_[0], $_[1], $_[2], 1 );
 }
 
 my $is_drive = qr/^[a-zA-Z]:/;
@@ -194,28 +199,28 @@ sub _cptree {
     _croakW("$from: no such directory") unless file_type d => $from;
 
     $content_only = 1 if $from =~ $in_dir;
-    $from = catfile $from;
+    $from         = catfile $from;
 
-    if ($to =~ $is_drive) {
+    if ( $to =~ $is_drive ) {
         $to = catfile $to, !$content_only ? basename($from) : ();
     }
     else {
         $to = catfile getcwdW(), $to, !$content_only ? basename($from) : ();
     }
 
-    unless (file_type d => $to) {
-        mkdirW $to or _croakW("$to: " . $!);
+    unless ( file_type d => $to ) {
+        mkdirW $to or _croakW( "$to: " . $! );
     }
 
     my $replace_from = quotemeta $from;
-    my $code = sub {
-        my $from_file = $_;
+    my $code         = sub {
+        my $from_file      = $_;
         my $from_full_path = $Win32::Unicode::Dir::name;
 
-        (my $to_file = $from_full_path) =~ s/$replace_from//;
+        ( my $to_file = $from_full_path ) =~ s/$replace_from//;
         $to_file = catfile $to, $to_file;
 
-        if (file_type d => $from_file) {
+        if ( file_type d => $from_file ) {
             rmdirW $from_file if $bymove;
             return;
         }
@@ -223,18 +228,21 @@ sub _cptree {
         my $to_dir = dirname $to_file;
         mkpathW $to_dir unless file_type d => $to_dir;
 
-        if (file_type f => $from_file) {
-            if ($over || not file_type f => $to_file) {
-                ($bymove
-                    ? moveW($from_file, $to_file, $over)
-                    : copyW($from_file, $to_file, $over)
-                ) or _croakW("$from_full_path to $to_file can't file copy ", errorW);
+        if ( file_type f => $from_file ) {
+            if ( $over || not file_type f => $to_file ) {
+                (
+                    $bymove
+                    ? moveW( $from_file, $to_file, $over )
+                    : copyW( $from_file, $to_file, $over )
+                  )
+                  or _croakW( "$from_full_path to $to_file can't file copy ",
+                    errorW );
             }
         }
     };
 
-    finddepthW($code, $from);
-    if ($bymove && !$content_only) {
+    finddepthW( $code, $from );
+    if ( $bymove && !$content_only ) {
         return unless rmdirW $from;
     }
     return 1;
@@ -244,7 +252,7 @@ sub _cptree {
 sub findW {
     _croakW('Usage: findW(code_ref, dir)') unless @_ >= 2;
     my $opts = shift;
-    @_ = ($opts, 0, @_);
+    @_ = ( $opts, 0, @_ );
     goto &_find_wrap;
 }
 
@@ -252,42 +260,42 @@ sub findW {
 sub finddepthW {
     _croakW('Usage: finddepthW(code_ref, dir)') unless @_ >= 2;
     my $opts = shift;
-    @_ = ($opts, 1, @_);
+    @_ = ( $opts, 1, @_ );
     goto &_find_wrap;
 }
 
 sub _find_wrap {
-    my $opts = shift;
+    my $opts    = shift;
     my $bydepth = shift;
-    my @args = @_;
+    my @args    = @_;
 
-    if (ref $opts eq 'CODE') {
+    if ( ref $opts eq 'CODE' ) {
         $opts = { wanted => $opts };
     }
-    elsif (ref $opts ne 'HASH') {
+    elsif ( ref $opts ne 'HASH' ) {
         _croakW('first args must be CODEREF or HASHREF specified');
     }
 
-    if (ref $opts->{wanted} ne 'CODE') {
+    if ( ref $opts->{wanted} ne 'CODE' ) {
         _croakW('wanted must be CODEREF specified');
     }
-    if (exists $opts->{preprocess} && ref $opts->{preprocess} ne 'CODE') {
+    if ( exists $opts->{preprocess} && ref $opts->{preprocess} ne 'CODE' ) {
         _croakW('preprocess must be CODEREF specified');
     }
-    if (exists $opts->{postprocess} && ref $opts->{postprocess} ne 'CODE') {
+    if ( exists $opts->{postprocess} && ref $opts->{postprocess} ne 'CODE' ) {
         _croakW('postprocess must be CODEREF specified');
     }
 
     $opts->{bydepth} ||= $bydepth;
 
-    local ($dir, $name, $cwd);
+    local ( $dir, $name, $cwd );
 
     for my $arg (@args) {
         $arg = catfile $arg;
-       _croakW("$arg: no such directory") unless file_type(d => $arg);
+        _croakW("$arg: no such directory") unless file_type( d => $arg );
 
         my $current = getcwdW;
-        _find($opts, $arg);
+        _find( $opts, $arg );
 
         $opts->{postprocess}->() if $opts->{postprocess};
         chdirW($current) unless $opts->{no_chdir};
@@ -302,58 +310,69 @@ sub _find {
     my $opts    = shift;
     my $new_dir = shift;
 
-    chdirW $new_dir or _croakW("$new_dir ", errorW) unless $opts->{no_chdir};
+    chdirW $new_dir or _croakW( "$new_dir ", errorW ) unless $opts->{no_chdir};
 
-    $dir = $cwd = $cwd ? $opts->{no_chdir} ? $new_dir : catfile($cwd, $new_dir) : $new_dir; # $Win32::Unicode::Dir::(dir|cwd)
+    $dir = $cwd =
+        $cwd
+      ? $opts->{no_chdir}
+          ? $new_dir
+          : catfile( $cwd, $new_dir )
+      : $new_dir;    # $Win32::Unicode::Dir::(dir|cwd)
 
     my $wdir = Win32::Unicode::Dir->new;
-    if ($opts->{no_chdir}) {
-        $wdir->open($dir) or _croakW("can't open directory: $dir", errorW);
+    if ( $opts->{no_chdir} ) {
+        $wdir->open($dir) or _croakW( "can't open directory: $dir", errorW );
     }
     else {
-        $wdir->open('.') or _croakW("can't open directory: $dir", errorW);
+        $wdir->open('.') or _croakW( "can't open directory: $dir", errorW );
     }
     my @list = $wdir->fetch;
-    $wdir->close or _croakW("can't close directory ", errorW);
+    $wdir->close or _croakW( "can't close directory ", errorW );
 
     @list = $opts->{preprocess}->(@list) if $opts->{preprocess};
 
     for my $cur (@list) {
         next if $cur =~ $skip_pattern;
 
-        $cur = catfile($cwd, $cur) if $opts->{no_chdir};
+        $cur = catfile( $cwd, $cur ) if $opts->{no_chdir};
 
-        unless ($opts->{bydepth}) {
-            $::_ = $cur; # $_
-            $name = $opts->{no_chdir} ? $cur : catfile $cwd, $cur; # $Win32::Unicode::Dir::name
-            $opts->{wanted}->({
-                file => $::_,
-                path => $name,
-                name => $name,
-                cwd  => $cwd,
-                dir  => $dir,
-            });
+        unless ( $opts->{bydepth} ) {
+            $::_  = $cur;                                      # $_
+            $name = $opts->{no_chdir} ? $cur : catfile $cwd,
+              $cur;    # $Win32::Unicode::Dir::name
+            $opts->{wanted}->(
+                {
+                    file => $::_,
+                    path => $name,
+                    name => $name,
+                    cwd  => $cwd,
+                    dir  => $dir,
+                }
+            );
         }
 
-        if (file_type 'd', $cur) {
-            _find($opts, $cur);
+        if ( file_type 'd', $cur ) {
+            _find( $opts, $cur );
 
             $opts->{postprocess}->() if $opts->{postprocess};
 
             chdirW '..' unless $opts->{no_chdir};
-            $dir = $cwd = catfile $cwd, '..'; # $Win32::Unicode::Dir::(dir|cwd)
+            $dir = $cwd = catfile $cwd, '..';  # $Win32::Unicode::Dir::(dir|cwd)
         }
 
-        if ($opts->{bydepth}) {
-            $::_ = $cur; # $_
-            $name = $opts->{no_chdir} ? $cur : catfile $cwd, $cur; # $Win32::Unicode::Dir::name
-            $opts->{wanted}->({
-                file => $::_,
-                path => $name,
-                name => $name,
-                cwd  => $cwd,
-                dir  => $dir,
-            });
+        if ( $opts->{bydepth} ) {
+            $::_  = $cur;                                      # $_
+            $name = $opts->{no_chdir} ? $cur : catfile $cwd,
+              $cur;    # $Win32::Unicode::Dir::name
+            $opts->{wanted}->(
+                {
+                    file => $::_,
+                    path => $name,
+                    name => $name,
+                    cwd  => $cwd,
+                    dir  => $dir,
+                }
+            );
         }
     }
 }
@@ -366,11 +385,14 @@ sub dir_size {
     $dir = catfile $dir;
 
     my $size = 0;
-    finddepthW(sub {
-        my $file = $_;
-        return if file_type d => $file;
-        $size += file_size $file;
-    }, $dir);
+    finddepthW(
+        sub {
+            my $file = $_;
+            return if file_type d => $file;
+            $size += file_size $file;
+        },
+        $dir
+    );
 
     return $size;
 }
